@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Twilio Call Center</title>
+    <script src="https://media.twiliocdn.com/sdk/js/client/v1.12/twilio.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <style>
+        .container {
+            display: flex;
+            justify-content: space-between;
+        }
+        .agent-selection {
+            flex: 1;
+        }
+        .call-controls {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="agent-selection">
+            <h2>Agent Selection</h2>
+            <label for="agent-select">Select Agent:</label>
+            <select id="agent-select">
+                <option value="">Select an agent</option>
+                <option value="agent1">Agent 1</option>
+                <option value="agent2">Agent 2</option>
+            </select>
+            <br>
+            <button id="availability-btn" onclick="toggleAvailability()">Agent Availability</button>
+        </div>
+        <div class="call-controls">
+            <h2>Call Controls</h2>
+            <input type="text" id="phone-number" placeholder="Enter phone number">
+            <br>
+            <button onclick="makeCall()">Make Call</button>
+        </div>
+    </div>
+
+    <h2>Incoming Call</h2>
+    <div id="incoming-call-info"></div>
+
+    <script>
+        const tokenUrl = '/token'; // url to token endpoint
+        const updateAgentStatusUrl = '/update-agent-status'; // agent status endpoint
+
+        let agentSid = ''; // agent SID
+
+        // function for agent availability
+        function toggleAvailability() {
+            const availabilityBtn = document.getElementById('availability-btn');
+            const isAvailable = availabilityBtn.innerHTML === 'Toggle Availability';
+
+            $.post(updateAgentStatusUrl, { agent_sid: agentSid, status: isAvailable ? 'unavailable' : 'available' })
+                .done(function (response) {
+                    availabilityBtn.innerHTML = isAvailable ? 'Toggle Unavailability' : 'Toggle Availability';
+                    availabilityBtn.style.backgroundColor = isAvailable ? 'red' : 'green';
+                })
+                .fail(function (error) {
+                    console.error('Error updating agent status:', error);
+                });
+        }
+
+        // outgoing call
+        function makeCall() {
+            const phoneNumber = document.getElementById('phone-number').value;
+
+            Twilio.Device.setup('{{ token }}', { debug: true });
+            const connection = Twilio.Device.connect({ phoneNumber });
+
+            connection.on('disconnect', function (conn) {
+                console.log('Call disconnected');
+            });
+            connection.on('error', function (error) {
+                console.error('Error making call:', error);
+            });
+        }
+
+        document.getElementById('agent-select').addEventListener('change', function () {
+            agentSid = this.value;
+            console.log('Selected Agent SID:', agentSid);
+        });
+
+        Twilio.Device.setup('{{ token }}', { debug: true });
+        Twilio.Device.incoming(function (connection) {
+            console.log('Incoming call:', connection.parameters.From);
+            document.getElementById('incoming-call-info').innerHTML = 'Incoming call from: ' + connection.parameters.From;
+
+            connection.accept();
+        });
+    </script>
+</body>
+</html>
